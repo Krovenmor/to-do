@@ -1,5 +1,11 @@
 import * as Device from "expo-device";
-import { Button, Platform, ScrollView, StyleSheet } from "react-native";
+import {
+  Button,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AnimatedIcon } from "@/components/animated-icon";
@@ -8,6 +14,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { WebBadge } from "@/components/web-badge";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 import { useState } from "react";
 
 function getDevMenuHint() {
@@ -29,12 +36,28 @@ function getDevMenuHint() {
   );
 }
 
+type TodoItem = {
+  id: number;
+  text: string;
+};
+
 export default function HomeScreen() {
-  const [items, setItems] = useState<string[]>(["Test 1", "Test 2"]);
+  const theme = useTheme();
+  const [items, setItems] = useState<TodoItem[]>([
+    { id: 1, text: "Test 1" },
+    { id: 2, text: "Test 2" },
+  ]);
+  const [text, setText] = useState("");
 
   const addItem = () => {
-    const newItem = `Test ${items.length + 1}`;
-    setItems([...items, newItem]);
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setItems([...items, { id: Date.now(), text: trimmed }]);
+    setText("");
+  };
+
+  const deleteItem = (id: number) => {
+    setItems(items.filter((item) => item.id !== id));
   };
 
   return (
@@ -46,8 +69,24 @@ export default function HomeScreen() {
             ToDo List
           </ThemedText>
         </ThemedView>
-        <ThemedView style={styles.heroSection}>
-          <Button title={"Add todo"} onPress={addItem} />
+        <ThemedView style={styles.inputRow}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: theme.text,
+                backgroundColor: theme.backgroundElement,
+                borderColor: theme.backgroundSelected,
+              },
+            ]}
+            placeholder="New todo..."
+            placeholderTextColor={theme.textSecondary}
+            value={text}
+            onChangeText={setText}
+            onSubmitEditing={addItem}
+            returnKeyType="done"
+          />
+          <Button title={"Add todo"} onPress={addItem} disabled={!text.trim()} />
         </ThemedView>
 
         <ThemedText type="code" style={styles.code}>
@@ -55,9 +94,19 @@ export default function HomeScreen() {
         </ThemedText>
         <ScrollView style={styles.scrollContainer}>
           <ThemedView type="backgroundElement" style={styles.stepContainer}>
-            {items.map((item) => (
-              <HintRow key={item} title={item} />
-            ))}
+            {items.length === 0 ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                No todos yet
+              </ThemedText>
+            ) : (
+              items.map((item) => (
+                <HintRow
+                  key={item.id}
+                  title={item.text}
+                  onDelete={() => deleteItem(item.id)}
+                />
+              ))
+            )}
           </ThemedView>
         </ScrollView>
         {Platform.OS === "web" && <WebBadge />}
@@ -88,6 +137,20 @@ const styles = StyleSheet.create({
   },
   title: {
     textAlign: "center",
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "stretch",
+    gap: Spacing.two,
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    fontSize: 16,
   },
   code: {
     textTransform: "uppercase",
